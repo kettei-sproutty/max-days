@@ -24,7 +24,7 @@ import {
   CardHeader,
   CardTitle,
 } from "./components/ui/card";
-import { addDays, differenceInDays } from "date-fns";
+import { addDays, differenceInDays, isAfter, isBefore, sub } from "date-fns";
 import { useCallback, useEffect, useState } from "react";
 
 const formSchema = z.object({
@@ -35,17 +35,22 @@ const formSchema = z.object({
 function App() {
   const getDefaultElements = useCallback(() => {
     try {
-      const dates: z.infer<typeof formSchema>['dates'] = JSON.parse(localStorage.getItem('tdc-dates') || "");
+      const dates: z.infer<typeof formSchema>["dates"] = JSON.parse(
+        localStorage.getItem("tdc-dates") || ""
+      );
       if (dates.length) {
-        return dates.map((dateRange) => ({ from: new Date(dateRange.from), to: new Date(dateRange.to) }))
+        return dates.map((dateRange) => ({
+          from: new Date(dateRange.from),
+          to: new Date(dateRange.to),
+        }));
       }
 
-      return []
+      return [];
     } catch (error) {
-      localStorage.setItem('tdc-dates', JSON.stringify([]))
-      return []
+      localStorage.setItem("tdc-dates", JSON.stringify([]));
+      return [];
     }
-  }, [])
+  }, []);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -66,30 +71,29 @@ function App() {
   });
 
   useEffect(() => {
-    localStorage.setItem('tdc-dates', JSON.stringify(form.getValues().dates))
-  }, [fields])
+    localStorage.setItem("tdc-dates", JSON.stringify(form.getValues().dates));
+  }, [fields]);
 
   const handleReset = () => {
     remove();
-  }
+  };
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     const referenceDate = new Date(values.next);
-
     const maxDays = 90;
-    const totalDays = values.dates.reduce((totalDays, dateRange) => {
-      const fromDate = new Date(dateRange.from);
-      const toDate = new Date(dateRange.to);
+    const firstDateCounted = sub(referenceDate, { days: 180 });
 
-      const dateDifference = differenceInDays(toDate, fromDate);
-
-      const daysFromReference = differenceInDays(fromDate, referenceDate);
-
-      if (daysFromReference <= 180) {
-        return totalDays + dateDifference + 1;
+    const totalDays = values.dates.reduce((sum, { from, to }) => {
+      if (isAfter(from, firstDateCounted) && isAfter(to, firstDateCounted)) {
+        return sum + differenceInDays(to, from) + 1;
+      } else if (
+        isBefore(from, firstDateCounted) &&
+        isAfter(to, firstDateCounted)
+      ) {
+        return sum + differenceInDays(to, firstDateCounted) + 1;
       }
 
-      return totalDays
+      return sum;
     }, 0);
 
     setNextTravel({
@@ -99,35 +103,40 @@ function App() {
   };
 
   const exportToJSON = () => {
-      const jsonData = JSON.stringify(form.getValues().dates, null, 2);
+    const jsonData = JSON.stringify(form.getValues().dates, null, 2);
 
-      const blob = new Blob([jsonData], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = 'dates.json';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-  }
+    const blob = new Blob([jsonData], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.style.display = "none";
+    a.href = url;
+    a.download = "dates.json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        remove()
-        const data: z.infer<typeof formSchema>['dates'] = JSON.parse(reader.result as string);
+        remove();
+        const data: z.infer<typeof formSchema>["dates"] = JSON.parse(
+          reader.result as string
+        );
         data.forEach((dateRange, index) => {
-          insert(index, { from: new Date(dateRange.from), to: new Date(dateRange.to) });
+          insert(index, {
+            from: new Date(dateRange.from),
+            to: new Date(dateRange.to),
+          });
         });
       } catch (error) {
-        alert('Invalid JSON file');
+        alert("Invalid JSON file");
       }
     };
     reader.readAsText(event.target.files?.[0] as Blob);
-  }
+  };
 
   return (
     <main className="flex flex-col justify-center items-center space-y-3 p-3">
@@ -207,11 +216,16 @@ function App() {
           </Button>
           <Button variant={"outline"}>
             <label htmlFor="import-json">Import</label>
-            <input type="file" id="import-json" onChange={handleImport} accept="*.json" max={1} className="sr-only" />
+            <input
+              type="file"
+              id="import-json"
+              onChange={handleImport}
+              accept="*.json"
+              max={1}
+              className="sr-only"
+            />
           </Button>
-          <Button onClick={exportToJSON}>
-            Export
-          </Button>
+          <Button onClick={exportToJSON}>Export</Button>
         </CardFooter>
       </Card>
       <Card className="w-full max-w-sm">
