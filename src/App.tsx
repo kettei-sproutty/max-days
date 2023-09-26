@@ -84,6 +84,10 @@ function App() {
     const firstDateCounted = sub(referenceDate, { days: 180 });
 
     const totalDays = values.dates.reduce((sum, { from, to }) => {
+      if (isAfter(from, referenceDate)) {
+        return sum;
+      }
+
       if (isAfter(from, firstDateCounted) && isAfter(to, firstDateCounted)) {
         return sum + differenceInDays(to, from) + 1;
       } else if (

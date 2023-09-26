@@ -7,8 +7,8 @@
     "orientation": "any",
     "display": "standalone",
     "display_override": ["window-controls-overlay"],
-    "theme_color": "lab(0 0% 100%)",
-    "background_color": "lab(222.2 84% 4.9%)",
+    "theme_color": "#e5e7eb",
+    "background_color": "#1e293b",
      "icons": [
     {
       "src": "/icons/windows11/SmallTile.scale-100.png",
